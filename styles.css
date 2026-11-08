@@ -120,3 +120,4 @@ input[type=range]{width:100%;accent-color:var(--coral);margin-top:10px;height:32
 .chat-actions .btn{padding:12px;font-size:14px}
 
 footer{text-align:center;color:var(--mut);font-size:12px;padding:26px 0 4px;line-height:1.7}
+.eyebrow{font-size:12px;font-weight:800;letter-spacing:2.2px;text-transform:uppercase;color:var(--gold);margin-bottom:8px}
