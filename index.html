@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nostos — Find your people. Come home.</title>
+<meta name="description" content="Nostos (Greek: homecoming) matches you with roommates by how you actually live — sleep, cleanliness, guests, food, budget — with ID verification and meet-first safety. Global, city by city.">
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header class="topbar">
+    <div class="brand">
+      <img src="logo.svg" alt="" class="brand-mark">
+      <span class="brand-name" data-brand>Nostos</span>
+    </div>
+    <button class="link-btn" id="navSafety">Safety</button>
+  </header>
+
+  <!-- HOME -->
+  <section id="view-home">
+    <div class="hero">
+      <p class="eyebrow">Nostos · Greek for homecoming</p><h1>Find your people. <em>Come home.</em></h1>
+      <p class="lede">A lease can lock you in for a year. Most people pick the person they'll live with after one rushed phone call. <span data-brand>Nostos</span> matches you on how you actually live — sleep, cleanliness, guests, food, budget — before you ever sign.</p>
+      <button class="btn btn-go" id="startQuiz">Take the 2-minute quiz</button>
+      <div class="hero-points">
+        <span>✓ ID-verified profiles</span><span>✓ Meet before you move in</span><span>✓ Free to match</span>
+      </div>
+    </div>
+
+    <div class="card how">
+      <h2>How it works</h2>
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div><b>Tell us how you live</b><p>Ten quick questions. Your non-negotiables are hard filters, never suggestions.</p></div></div>
+        <div class="step"><div class="step-n">2</div><div><b>See your compatibility %</b><p>Every person comes with a score and the reasons behind it. No mystery, no luck.</p></div></div>
+        <div class="step"><div class="step-n">3</div><div><b>Chat, meet, then decide</b><p>Talk in the app, video-call, meet in a public place — then sign, in that order.</p></div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Coming to your city</h2>
+      <p class="muted">We open city by city, where the waitlist is strongest. Tell us where you're landing and you'll be first to know.</p>
+      <form id="waitlistForm" class="waitlist">
+        <select id="waitCity" aria-label="Your city"></select>
+        <input type="email" id="waitEmail" placeholder="you@example.com" required aria-label="Email">
+        <button class="btn btn-dark" type="submit">Join the waitlist</button>
+      </form>
+      <p class="wait-ok hidden" id="waitOk">You're in. We'll write to you the moment your city opens. 🏠</p>
+      <div class="city-chips" id="cityChips"></div>
+    </div>
+
+    <div class="card safety-strip">
+      <h2>Built for the person arriving alone</h2>
+      <p class="muted">New city, no network, a lease to sign. That's who we protect first: verified IDs, in-app chat until you're comfortable, and a meet-first rule on every match.</p>
+      <button class="btn btn-ghost" id="homeSafety">How safety works</button>
+    </div>
+  </section>
+
+  <!-- QUIZ -->
+  <section id="view-quiz" class="hidden">
+    <div class="quiz-head">
+      <button class="link-btn" id="quizBackBtn">← Back</button>
+      <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
+      <span class="quiz-count" id="quizCount"></span>
+    </div>
+    <div class="card quiz-card">
+      <h2 id="quizQ"></h2>
+      <p class="muted hidden" id="quizHint"></p>
+      <div id="quizBody"></div>
+      <button class="btn btn-go hidden" id="quizNext">Continue</button>
+    </div>
+  </section>
+
+  <!-- DECK -->
+  <section id="view-deck" class="hidden">
+    <div class="deck-head">
+      <h2>People in <span id="deckCity"></span></h2>
+      <span class="muted" id="deckCount"></span>
+    </div>
+    <p class="muted hidden" id="deckNote"></p>
+    <div id="deck"></div>
+    <div class="swipe">
+      <button class="no" id="btnNo">✕ Pass</button>
+      <button class="yes" id="btnYes">♥ Connect</button>
+    </div>
+    <button class="btn btn-ghost" id="editProfile">← Edit my answers</button>
+  </section>
+
+  <!-- MATCHES -->
+  <section id="view-matches" class="hidden">
+    <h2>Your matches</h2>
+    <div id="matchList"></div>
+    <button class="btn btn-ghost" id="againBtn">↺ Start over</button>
+  </section>
+
+  <!-- CHAT -->
+  <section id="view-chat" class="hidden">
+    <div class="chat-head">
+      <button class="link-btn" id="chatBack">← Matches</button>
+      <b id="chatName"></b>
+      <span class="verified hidden" id="chatVerified">✓ ID verified</span>
+    </div>
+    <div class="card chat-card">
+      <div class="chat-log" id="chatLog"></div>
+      <div class="icebreakers" id="icebreakers"></div>
+      <form class="chat-form" id="chatForm">
+        <input type="text" id="chatInput" placeholder="Say hello…" autocomplete="off">
+        <button class="btn btn-go chat-send" type="submit">Send</button>
+      </form>
+      <p class="chat-safe">Stay in the app until you've met. <span data-brand>Nostos</span> never asks you to move to another app or pay a deposit to chat.</p>
+      <div class="chat-actions">
+        <button class="btn btn-ghost" id="planCall">📹 Plan a video call</button>
+        <button class="btn btn-ghost" id="planMeet">☕ Plan a public meet</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- SAFETY -->
+  <section id="view-safety" class="hidden">
+    <button class="link-btn" id="safetyBack">← Back</button>
+    <h2>Safety, in plain words</h2>
+    <div class="card">
+      <div class="steps">
+        <div class="step"><div class="step-n">✓</div><div><b>Every profile is ID-verified</b><p>Government ID plus a live selfie match before anyone can connect. Verified profiles carry the ✓ badge.</p></div></div>
+        <div class="step"><div class="step-n">✓</div><div><b>Chat stays in the app</b><p>Your phone number and email stay private until you choose to share them. Anyone pushing you off-app fast is a red flag — report them.</p></div></div>
+        <div class="step"><div class="step-n">✓</div><div><b>Video call before you meet</b><p>See the person, see the home. If the camera is always "broken," walk away.</p></div></div>
+        <div class="step"><div class="step-n">✓</div><div><b>Meet first, in public</b><p>First meeting: a café, in daylight, and tell a friend where you'll be. View the home together, never alone at night.</p></div></div>
+        <div class="step"><div class="step-n">✓</div><div><b>Money moves last</b><p>No deposit to "hold" a room before you've met and seen a real lease with the landlord's name on it.</p></div></div>
+      </div>
+      <button class="btn btn-go" id="safetyQuiz">Start matching safely</button>
+    </div>
+  </section>
+
+  <footer>
+    <span data-brand>Nostos</span> — find your people. Come home.<br>
+    Sample profiles shown for illustration. Built by Akanksha Sharma.
+  </footer>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
