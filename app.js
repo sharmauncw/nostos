@@ -119,7 +119,8 @@ function breaksDeal(m){
 }
 
 /* ---------- helpers ---------- */
-function show(id){ ['home','quiz','deck','matches','chat','safety','auth','basics','verify'].forEach(v=>{ const el=$('#view-'+v); if(el) el.classList.toggle('hidden', v!==id); }); window.scrollTo({top:0}); }
+let currentView = 'home';
+function show(id){ currentView = id; ['home','quiz','deck','matches','chat','safety','auth','basics','verify'].forEach(v=>{ const el=$('#view-'+v); if(el) el.classList.toggle('hidden', v!==id); }); window.scrollTo({top:0}); }
 function initials(n){ return (n||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(); }
 function avaColor(n){ let h=0; for(const ch of (n||'')) h=(h*31+ch.charCodeAt(0))>>>0; return AVA_COLORS[h%AVA_COLORS.length]; }
 function esc(t){ const d=document.createElement('div'); d.textContent = t ?? ''; return d.innerHTML; }
@@ -158,7 +159,12 @@ $('#authForm').addEventListener('submit', async e=>{
   $('#authSent').classList.remove('hidden'); e.target.classList.add('hidden');
 });
 if(sb) sb.auth.onAuthStateChange(async (event)=>{
-  if(event === 'SIGNED_IN'){ await refreshAuth(); afterLogin(); }
+  /* Only route into the post-login flow when the user is actually on a
+     sign-in screen. A session event firing mid-session (token refresh,
+     page reload) must never yank the user out of what they're doing. */
+  if(event === 'SIGNED_IN' && (currentView === 'auth' || currentView === 'basics')){
+    await refreshAuth(); afterLogin();
+  }
 });
 
 /* ---------- quiz ---------- */
@@ -513,11 +519,15 @@ $('#verifyForm').addEventListener('submit', async e=>{
   const f = $('#idFile').files[0]; if(!f) return;
   const ext = (f.name.split('.').pop() || 'jpg').toLowerCase();
   const path = `${user.id}/id-${Date.now()}.${ext}`;
-  const { error } = await sb.storage.from('id-docs').upload(path, f);
-  if(error){ alert('Upload failed: ' + error.message); return; }
-  await sb.from('profiles').update({ verification_status:'pending' }).eq('id', myProfile.id);
+  try{
+    const { error } = await sb.storage.from('id-docs').upload(path, f);
+    if(error) throw error;
+    const { error: uerr } = await sb.from('profiles').update({ verification_status:'pending' }).eq('id', myProfile.id);
+    if(uerr) throw uerr;
+  }catch(err){ alert('Upload failed: ' + (err.message || err)); show('verify'); return; }
   myProfile.verification_status = 'pending';
   $('#verifyOk').classList.remove('hidden');
+  show('verify');
   renderVerify();
 });
 async function loadAdminQueue(){
