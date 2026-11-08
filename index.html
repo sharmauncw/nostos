@@ -45,7 +45,7 @@
       <img src="logo.svg" alt="" class="brand-mark">
       <span class="brand-name" data-brand>Nostos</span>
     </div>
-    <span class="top-actions"><button class="link-btn" id="navVerify">Get verified</button><button class="link-btn" id="navSafety">Safety</button><button class="link-btn" id="navAccount">Sign in</button></span>
+    <span class="top-actions"><button class="link-btn" id="navMatches">Matches<span class="badge hidden" id="unreadBadge"></span></button><button class="link-btn" id="navVerify">Get verified</button><button class="link-btn" id="navSafety">Safety</button><button class="link-btn" id="navAccount">Sign in</button></span>
   </header>
 
   <!-- HOME -->
@@ -143,6 +143,9 @@
         <button class="btn btn-ghost" id="planCall">📹 Plan a video call</button>
         <button class="btn btn-ghost" id="planMeet">☕ Plan a public meet</button>
       </div>
+      <div class="card-actions">
+        <button id="chatReport">Report</button><button id="chatBlock">Block</button>
+      </div>
     </div>
   </section>
 
@@ -219,7 +222,7 @@
   </footer>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="app.js?v=5"></script>
+<script src="app.js?v=6"></script>
 <script>
 /* PWA: register the service worker (shell caching; data stays network-only) */
 if ('serviceWorker' in navigator) {

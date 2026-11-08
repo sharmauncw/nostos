@@ -129,7 +129,7 @@ function breaksDeal(m){
 
 /* ---------- helpers ---------- */
 let currentView = 'home';
-function show(id){ currentView = id; ['home','quiz','deck','matches','chat','safety','auth','basics','verify'].forEach(v=>{ const el=$('#view-'+v); if(el) el.classList.toggle('hidden', v!==id); }); window.scrollTo({top:0}); }
+function show(id){ currentView = id; ['home','quiz','deck','matches','chat','safety','auth','basics','verify'].forEach(v=>{ const el=$('#view-'+v); if(el) el.classList.toggle('hidden', v!==id); }); window.scrollTo({top:0}); refreshUnread(); }
 function initials(n){ return (n||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(); }
 function avaColor(n){ let h=0; for(const ch of (n||'')) h=(h*31+ch.charCodeAt(0))>>>0; return AVA_COLORS[h%AVA_COLORS.length]; }
 function esc(t){ const d=document.createElement('div'); d.textContent = t ?? ''; return d.innerHTML; }
@@ -146,6 +146,7 @@ async function refreshAuth(){
     if(myProfile){ quiz = profileToQuiz(myProfile); }
   }
   updateAccountBtn();
+  if(myProfile){ watchUnread(); refreshUnread(); }
 }
 function profileToQuiz(p){
   return { city:p.city, budget:p.budget, sleep:p.sleep, clean:p.clean, guests:p.guests,
@@ -156,7 +157,7 @@ function updateAccountBtn(){
   b.textContent = user ? (user.email.split('@')[0] + ' · Sign out') : 'Sign in';
 }
 $('#navAccount').addEventListener('click', async ()=>{
-  if(user){ if(confirm('Sign out of ' + CONFIG.BRAND + '?')){ await sb.auth.signOut(); user=null; myProfile=null; updateAccountBtn(); show('home'); } }
+  if(user){ if(confirm('Sign out of ' + CONFIG.BRAND + '?')){ await sb.auth.signOut(); user=null; myProfile=null; if(unreadChannel){ sb.removeChannel(unreadChannel); unreadChannel = null; } updateAccountBtn(); show('home'); } }
   else show('auth');
 });
 $('#authBack').addEventListener('click', ()=>show('home'));
@@ -284,6 +285,20 @@ $('#basicsForm').addEventListener('submit', async e=>{
   buildDeck();
 });
 
+/* ---------- blocks (safety) ---------- */
+let blockOut = new Set(), blockIn = new Set(); // profiles I blocked / profiles that blocked me
+async function loadBlocks(){
+  blockOut = new Set(); blockIn = new Set();
+  if(!sb || !myProfile) return;
+  const { data } = await sb.from('blocks').select('blocker, blocked')
+    .or(`blocker.eq.${myProfile.id},blocked.eq.${myProfile.id}`);
+  (data ?? []).forEach(b=>{
+    if(b.blocker === myProfile.id) blockOut.add(b.blocked);
+    if(b.blocked === myProfile.id) blockIn.add(b.blocker);
+  });
+}
+function isBlockedEitherWay(otherId){ return blockOut.has(otherId) || blockIn.has(otherId); }
+
 /* ---------- deck ---------- */
 async function buildDeck(preset){
   let pool = preset ?? [];
@@ -296,9 +311,8 @@ async function buildDeck(preset){
       const { data: sw } = await sb.from('swipes').select('target').eq('swiper', myProfile.id);
       const swiped = new Set((sw||[]).map(s=>s.target));
       pool = pool.filter(p=>!swiped.has(p.id));
-      const { data: bl } = await sb.from('blocks').select('blocked').eq('blocker', myProfile.id);
-      const blocked = new Set((bl||[]).map(b=>b.blocked));
-      pool = pool.filter(p=>!blocked.has(p.id));
+      await loadBlocks();
+      pool = pool.filter(p=>!isBlockedEitherWay(p.id));
     }
     if(!pool.length){
       const { data: samples } = await sb.from('profiles').select('*').eq('is_sample', true);
@@ -388,10 +402,12 @@ async function blockPerson(m){
 async function loadDbMatches(){
   dbMatches = [];
   if(!sb || !myProfile) return;
+  await loadBlocks();
   const { data } = await sb.from('matches').select('*')
     .or(`user_a.eq.${myProfile.id},user_b.eq.${myProfile.id}`).order('created_at', { ascending:false });
   for(const mt of (data ?? [])){
     const otherId = mt.user_a === myProfile.id ? mt.user_b : mt.user_a;
+    if(isBlockedEitherWay(otherId)) continue; // a block on either side hides the thread
     const { data: other } = await sb.from('profiles').select('*').eq('id', otherId).single();
     if(other) dbMatches.push({ matchId: mt.id, p: other, s: scorePerson(other) });
   }
@@ -432,6 +448,7 @@ function appendMsg(body, mine, sys){
   log.appendChild(div); log.scrollTop = log.scrollHeight;
 }
 async function openChat(d){
+  if(d.real && isBlockedEitherWay(d.p.id)){ alert('This connection is no longer available.'); renderMatches(); return; }
   currentChat = d;
   if(chatChannel && sb){ sb.removeChannel(chatChannel); chatChannel = null; }
   $('#chatName').textContent = `${d.p.display_name}, ${d.p.age} · ${d.s.pct}% match`;
@@ -445,9 +462,16 @@ async function openChat(d){
     appendMsg(`You matched with ${d.p.display_name}. Chat here until you've video-called and met in public.`, false, true);
     const { data: msgs } = await sb.from('messages').select('*').eq('match_id', d.matchId).order('created_at');
     (msgs ?? []).forEach(m=>appendMsg(m.body, m.sender === myProfile.id));
+    markChatRead(d.matchId, (msgs && msgs.length) ? msgs[msgs.length - 1].created_at : new Date().toISOString());
+    refreshUnread();
     chatChannel = sb.channel('chat-' + d.matchId)
       .on('postgres_changes', { event:'INSERT', schema:'public', table:'messages', filter:`match_id=eq.${d.matchId}` },
-        payload => { if(payload.new.sender !== myProfile.id) appendMsg(payload.new.body, false); })
+        payload => {
+          if(payload.new.sender === myProfile.id || isBlockedEitherWay(payload.new.sender)) return;
+          appendMsg(payload.new.body, false);
+          markChatRead(d.matchId, payload.new.created_at);
+          refreshUnread();
+        })
       .subscribe();
   } else {
     appendMsg(`Sample profile — this is a preview of how chat feels on ${CONFIG.BRAND}.`, false, true);
@@ -465,6 +489,13 @@ const REPLIES = [
 let replyIdx = 0;
 async function sendMsg(text){
   if(!text) return;
+  if(currentChat?.real && sb && myProfile){
+    await loadBlocks(); // fresh check: a block placed mid-chat stops the send path too
+    if(isBlockedEitherWay(currentChat.p.id)){
+      appendMsg('Messaging is unavailable for this connection.', false, true);
+      return;
+    }
+  }
   if(currentChat?.real && sb){
     appendMsg(text, true);
     await sb.from('messages').insert({ match_id: currentChat.matchId, sender: myProfile.id, body: text });
@@ -485,6 +516,75 @@ $('#planCall').addEventListener('click', ()=>{
 $('#planMeet').addEventListener('click', ()=>{
   if(currentChat) appendMsg(`☕ Public meet suggested: a café near ${currentChat.p.area}, daytime. Tell a friend where you'll be.`, false, true);
 });
+function closeChatToMatches(){
+  if(chatChannel && sb){ sb.removeChannel(chatChannel); chatChannel = null; }
+  currentChat = null;
+  renderMatches();
+}
+$('#chatReport').addEventListener('click', async ()=>{
+  if(!currentChat) return;
+  const d = currentChat;
+  if(!d.real || !sb || !myProfile){ alert('Thanks — our team has noted this profile.'); return; }
+  const reason = prompt('What happened? (optional)') ?? '';
+  await sb.from('reports').insert({ reporter: myProfile.id, reported: d.p.id, reason });
+  await sb.from('blocks').insert({ blocker: myProfile.id, blocked: d.p.id });
+  blockOut.add(d.p.id);
+  alert('Reported. Our team will review, and this connection is now hidden.');
+  closeChatToMatches();
+});
+$('#chatBlock').addEventListener('click', async ()=>{
+  if(!currentChat) return;
+  const d = currentChat;
+  if(d.real && sb && myProfile){
+    await sb.from('blocks').insert({ blocker: myProfile.id, blocked: d.p.id });
+    blockOut.add(d.p.id);
+  } else {
+    sampleMatches = sampleMatches.filter(x=>x.p.id !== d.p.id);
+  }
+  alert('Blocked. You won\'t see each other, and neither of you can send messages.');
+  closeChatToMatches();
+});
+
+/* ---------- unread badges ---------- */
+let unreadChannel = null;
+function lastReadMap(){
+  try{ return JSON.parse(localStorage.getItem('nostos_lastread') || '{}'); }catch(e){ return {}; }
+}
+function markChatRead(matchId, ts){
+  const m = lastReadMap();
+  m[matchId] = ts || new Date().toISOString();
+  try{ localStorage.setItem('nostos_lastread', JSON.stringify(m)); }catch(e){}
+}
+async function refreshUnread(){
+  const badge = $('#unreadBadge');
+  if(!badge) return;
+  if(!sb || !myProfile){ badge.classList.add('hidden'); return; }
+  if(!dbMatches.length) await loadDbMatches();
+  const ids = dbMatches.map(d=>d.matchId);
+  if(!ids.length){ badge.classList.add('hidden'); return; }
+  const { data } = await sb.from('messages').select('match_id, created_at')
+    .in('match_id', ids).neq('sender', myProfile.id);
+  const seen = lastReadMap();
+  let n = 0;
+  (data ?? []).forEach(m=>{
+    const last = seen[m.match_id] ? Date.parse(seen[m.match_id]) : 0;
+    if(Date.parse(m.created_at) > last) n++;
+  });
+  badge.textContent = n > 99 ? '99+' : String(n);
+  badge.classList.toggle('hidden', n === 0);
+}
+function watchUnread(){
+  if(!sb || !myProfile || unreadChannel) return;
+  unreadChannel = sb.channel('unread-watch')
+    .on('postgres_changes', { event:'INSERT', schema:'public', table:'messages' }, payload=>{
+      if(payload.new.sender === myProfile.id) return;
+      if(currentChat?.real && payload.new.match_id === currentChat.matchId && currentView === 'chat'){
+        markChatRead(currentChat.matchId, payload.new.created_at);
+      }
+      refreshUnread();
+    })
+    .subscribe();
+}
 
 /* ---------- waitlist ---------- */
 function initHome(){
@@ -500,6 +600,7 @@ function initHome(){
     else { try{ const l = JSON.parse(localStorage.getItem('nostos_waitlist')||'[]'); l.push({city:sel.value, email}); localStorage.setItem('nostos_waitlist', JSON.stringify(l)); }catch(err){} }
     $('#waitOk').classList.remove('hidden'); e.target.classList.add('hidden');
   });
+  $('#navMatches').addEventListener('click', ()=>renderMatches());
   $('#startQuiz').addEventListener('click', startQuiz);
   $('#homeSafety').addEventListener('click', ()=>show('safety'));
   $('#navSafety').addEventListener('click', ()=>show('safety'));

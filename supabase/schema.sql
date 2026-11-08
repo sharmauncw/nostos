@@ -158,10 +158,22 @@ create policy "insert own reports"
   on public.reports for insert to authenticated
   with check (reporter in (select id from public.profiles where user_id = auth.uid()));
 
-create policy "own blocks"
-  on public.blocks for all to authenticated
-  using (blocker in (select id from public.profiles where user_id = auth.uid()))
+-- Blocks: either party may READ a block row (so one block hides BOTH
+-- sides' decks and matches in the app); only the blocker may write/delete.
+-- LIVE-DB NOTE (Nov 2026): if this project is already running, do NOT
+-- re-run this whole file (it drops every table). Apply only this delta:
+--   drop policy "own blocks" on public.blocks;
+--   then run the three create policy statements below.
+create policy "parties read blocks"
+  on public.blocks for select to authenticated
+  using (blocker in (select id from public.profiles where user_id = auth.uid())
+      or blocked in (select id from public.profiles where user_id = auth.uid()));
+create policy "insert own blocks"
+  on public.blocks for insert to authenticated
   with check (blocker in (select id from public.profiles where user_id = auth.uid()));
+create policy "delete own blocks"
+  on public.blocks for delete to authenticated
+  using (blocker in (select id from public.profiles where user_id = auth.uid()));
 
 -- ---------- ID document storage (private bucket) ----------
 insert into storage.buckets (id, name, public)
