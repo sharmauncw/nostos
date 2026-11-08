@@ -17,7 +17,7 @@ const CONFIG = {
    nostos.goatcounter.com/count). Leave '' and NOTHING loads:
    no script tag, no requests, no tracking.
    ================================================================ */
-window.NOSTOS_CONFIG = { goatcounter: '' };
+window.NOSTOS_CONFIG = { goatcounter: 'nostos' };
 const $ = s => document.querySelector(s);
 const fmt = (n, c) => c.sym + n.toLocaleString(c.locale);
 const sb = (window.supabase && CONFIG.SB_URL)
