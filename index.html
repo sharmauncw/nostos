@@ -19,7 +19,7 @@
       <img src="logo.svg" alt="" class="brand-mark">
       <span class="brand-name" data-brand>Nostos</span>
     </div>
-    <button class="link-btn" id="navSafety">Safety</button>
+    <span class="top-actions"><button class="link-btn" id="navVerify">Get verified</button><button class="link-btn" id="navSafety">Safety</button><button class="link-btn" id="navAccount">Sign in</button></span>
   </header>
 
   <!-- HOME -->
@@ -120,6 +120,57 @@
     </div>
   </section>
 
+
+  <!-- AUTH -->
+  <section id="view-auth" class="hidden">
+    <button class="link-btn" id="authBack">← Back</button>
+    <div class="card">
+      <h2 id="authTitle">Sign in to see your matches</h2>
+      <p class="muted">We email you a sign-in link — no password to remember, nothing to leak. Your quiz answers are saved on this device and become your profile the moment you sign in.</p>
+      <form id="authForm" class="waitlist">
+        <input type="email" id="authEmail" placeholder="you@example.com" required aria-label="Email">
+        <button class="btn btn-go" type="submit">Email me a sign-in link</button>
+      </form>
+      <p class="wait-ok hidden" id="authSent">Link sent. Check your inbox and tap it — you'll come right back here, signed in. 📬</p>
+    </div>
+  </section>
+
+  <!-- PROFILE BASICS -->
+  <section id="view-basics" class="hidden">
+    <div class="card">
+      <h2>Almost there — your profile</h2>
+      <p class="muted">This is what your matches see. Use a first name or the name you go by.</p>
+      <form id="basicsForm" class="waitlist">
+        <input type="text" id="bName" placeholder="Your name" required maxlength="40">
+        <input type="number" id="bAge" placeholder="Age" required min="18" max="99">
+        <input type="text" id="bJob" placeholder="Work or study — e.g. Nurse, PhD student" maxlength="60">
+        <input type="text" id="bArea" placeholder="Neighbourhood / area" maxlength="60">
+        <input type="text" id="bLangs" placeholder="Languages — e.g. English, Hindi" maxlength="80">
+        <input type="text" id="bLine" placeholder="One line about your home life" maxlength="140">
+        <button class="btn btn-go" type="submit">Create my profile</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- VERIFY -->
+  <section id="view-verify" class="hidden">
+    <button class="link-btn" id="verifyBack">← Back</button>
+    <div class="card">
+      <h2>ID verification</h2>
+      <p class="muted">Verified profiles get the ✓ badge and far more replies. Upload a photo of a government ID (passport or driving licence). It goes into a private vault — only the review team can open it, and it's never shown on your profile.</p>
+      <p class="verify-status" id="verifyStatus"></p>
+      <form id="verifyForm" class="waitlist">
+        <input type="file" id="idFile" accept="image/*,.pdf" required aria-label="ID document">
+        <button class="btn btn-go" type="submit">Submit for review</button>
+      </form>
+      <p class="wait-ok hidden" id="verifyOk">Received. Reviews usually take a day. We'll update your badge here.</p>
+    </div>
+    <div class="card hidden" id="adminCard">
+      <h2>Review queue (admin)</h2>
+      <div id="adminList"></div>
+    </div>
+  </section>
+
   <!-- SAFETY -->
   <section id="view-safety" class="hidden">
     <button class="link-btn" id="safetyBack">← Back</button>
@@ -141,6 +192,7 @@
     Sample profiles shown for illustration. Built by Akanksha Sharma.
   </footer>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
