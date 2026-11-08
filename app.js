@@ -9,6 +9,15 @@ const CONFIG = {
   SB_URL: 'https://rvvsggosuihjuzuevexa.supabase.co',
   SB_KEY: 'sb_publishable_YCndyw5gYHWUcx8AavPIRg_AWDXliTc'
 };
+
+/* ================================================================
+   ANALYTICS CONFIG — GoatCounter (privacy-friendly, no cookies)
+   To enable: set goatcounter to the account code — the subdomain
+   in front of .goatcounter.com (e.g. 'nostos' for
+   nostos.goatcounter.com/count). Leave '' and NOTHING loads:
+   no script tag, no requests, no tracking.
+   ================================================================ */
+window.NOSTOS_CONFIG = { goatcounter: '' };
 const $ = s => document.querySelector(s);
 const fmt = (n, c) => c.sym + n.toLocaleString(c.locale);
 const sb = (window.supabase && CONFIG.SB_URL)
@@ -561,3 +570,14 @@ async function loadAdminQueue(){
 /* ---------- boot ---------- */
 initHome();
 refreshAuth();
+
+/* ---------- analytics (loads ONLY when a GoatCounter code is configured) ---------- */
+(function initAnalytics(){
+  const code = (window.NOSTOS_CONFIG && window.NOSTOS_CONFIG.goatcounter || '').trim();
+  if (!code) return;
+  const s = document.createElement('script');
+  s.async = true;
+  s.src = 'https://gc.zgo.at/count.js';
+  s.setAttribute('data-goatcounter', 'https://' + code + '.goatcounter.com/count');
+  document.head.appendChild(s);
+})();
