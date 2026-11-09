@@ -28,6 +28,7 @@ const CITIES = {
   mumbai:   {name:'Mumbai',    country:'India',        cur:{sym:'₹', locale:'en-IN'}, min:12000, max:60000, step:1000, def:25000},
   newyork:  {name:'New York',  country:'USA',          cur:{sym:'$', locale:'en-US'}, min:900,   max:3000,  step:50,   def:1500},
   austin:   {name:'Austin',    country:'USA',          cur:{sym:'$', locale:'en-US'}, min:700,   max:2200,  step:50,   def:1100},
+  wilmington:{name:'Wilmington',country:'USA',         cur:{sym:'$', locale:'en-US'}, min:500,   max:1800,  step:50,   def:800},
   london:   {name:'London',    country:'UK',           cur:{sym:'£', locale:'en-GB'}, min:700,   max:2000,  step:25,   def:1100},
   berlin:   {name:'Berlin',    country:'Germany',      cur:{sym:'€', locale:'de-DE'}, min:500,   max:1500,  step:25,   def:850},
   toronto:  {name:'Toronto',   country:'Canada',       cur:{sym:'C$',locale:'en-CA'}, min:800,   max:2200,  step:50,   def:1300},
@@ -332,6 +333,7 @@ $('#basicsForm').addEventListener('submit', async e=>{
     area: $('#bArea').value.trim() || null,
     langs: $('#bLangs').value.split(',').map(s=>s.trim()).filter(Boolean),
     line: $('#bLine').value.trim() || null,
+    referred_by: storedRef() || null,
     city: quiz.city, budget: quiz.budget, sleep: quiz.sleep, clean: quiz.clean, guests: quiz.guests,
     smoke: quiz.smoke, pets: quiz.pets, food: quiz.food, work: quiz.work, breakers: quiz.breakers||[]
   };
@@ -661,12 +663,13 @@ function initHome(){
     const email = $('#waitEmail').value.trim();
     let pos = 0;
     if(sb){
-      await sb.from('waitlist').insert({ city: sel.value, email });
-      /* Position needs a count of this city's waitlist. Current RLS only
-         permits inserts, so the count normally comes back 0 — in that
-         case we confirm without a number (see the ROADMAP follow-up). */
-      const { count } = await sb.from('waitlist').select('id', { count:'exact', head:true }).eq('city', sel.value);
-      if(typeof count === 'number' && count > 0) pos = count;
+      await sb.from('waitlist').insert({ city: sel.value, email, ref: storedRef() || null });
+      /* Position comes from the waitlist_count RPC (security definer),
+         since RLS permits inserts only on the waitlist table. The row
+         was just inserted, so the count is this joiner's position.
+         If the RPC errors, pos stays 0 and we confirm without a number. */
+      const { data: cnt } = await sb.rpc('waitlist_count', { p_city: sel.value });
+      if(typeof cnt === 'number' && cnt > 0) pos = cnt;
     }
     else { try{ const l = JSON.parse(localStorage.getItem('nostos_waitlist')||'[]'); l.push({city:sel.value, email}); localStorage.setItem('nostos_waitlist', JSON.stringify(l)); }catch(err){} }
     const ref = storedRef();
