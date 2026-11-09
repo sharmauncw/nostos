@@ -46,6 +46,8 @@ const SCALES = {
 };
 const TRAIT_LABEL = {sleep:'Sleep', clean:'Cleaning', guests:'Guests', smoke:'Smoking', pets:'Pets', food:'Food', work:'Work style'};
 const WEIGHTS = {sleep:20, clean:20, guests:15, budget:15, food:10, work:10, pets:5, smoke:5};
+/* Short plain labels for the strongest shared factors ("why this match") */
+const FACTOR_LABEL = {sleep:'Same sleep schedule', clean:'Same cleaning style', guests:'Same guest style', budget:'Budget aligned', food:'Same food habits', work:'Same work style', pets:'Good on pets', smoke:'Smoking habits match'};
 const AVA_COLORS = ['#FF6B4A','#0E7C7B','#7A5EA8','#D97706','#2D6CB5','#B5446E','#4C7A3F','#8A6D1F'];
 
 /* Fallback sample people — used only if the backend is unreachable */
@@ -75,6 +77,7 @@ const QUIZ = [
 let user = null, myProfile = null;
 let quiz = {}, qi = 0, deck = [], idx = 0, hiddenCount = 0;
 let dbMatches = [], sampleMatches = [], currentChat = null, chatChannel = null;
+let howFrom = 'home'; // where the "How matching works" view returns to
 
 /* ---------- scoring engine (unchanged) ---------- */
 function simOrdinal(a,b,max){ return 1 - Math.abs(a-b)/max; }
@@ -116,7 +119,19 @@ function scorePerson(m){
   if(m.city === quiz.city) why.push(`Same city: ${city.name} · ${m.area}`);
   const worst = Object.keys(parts).sort((a,b)=>parts[a]-parts[b])[0];
   if(parts[worst] < .6 && TRAIT_LABEL[worst]) talk.push(`Worth a chat — ${TRAIT_LABEL[worst].toLowerCase()}: they're “${SCALES[worst][m[worst]]}”, you're “${SCALES[worst][quiz[worst]]}”`);
-  return { pct: Math.round(total), why: why.slice(0,3), talk: talk.slice(0,1), parts };
+  /* Factor breakdown: strongest alignments first (weighted contribution),
+     shown as short labels on the card, in matches, and in chat. */
+  const factors = Object.keys(WEIGHTS)
+    .map(k=>({ k, c: WEIGHTS[k] * parts[k], p: parts[k] }))
+    .filter(f=>f.p >= .75)
+    .sort((a,b)=>b.c - a.c)
+    .slice(0,3)
+    .map(f=>FACTOR_LABEL[f.k]);
+  if(!factors.length){
+    const top = Object.keys(WEIGHTS).sort((a,b)=>WEIGHTS[b] * parts[b] - WEIGHTS[a] * parts[a])[0];
+    factors.push(FACTOR_LABEL[top]);
+  }
+  return { pct: Math.round(total), why: why.slice(0,3), talk: talk.slice(0,1), parts, factors };
 }
 function breaksDeal(m){
   const b = quiz.breakers || [];
@@ -129,10 +144,50 @@ function breaksDeal(m){
 
 /* ---------- helpers ---------- */
 let currentView = 'home';
-function show(id){ currentView = id; ['home','quiz','deck','matches','chat','safety','auth','basics','verify'].forEach(v=>{ const el=$('#view-'+v); if(el) el.classList.toggle('hidden', v!==id); }); window.scrollTo({top:0}); refreshUnread(); }
+function show(id){ currentView = id; ['home','quiz','deck','matches','chat','safety','auth','basics','verify','how'].forEach(v=>{ const el=$('#view-'+v); if(el) el.classList.toggle('hidden', v!==id); }); window.scrollTo({top:0}); refreshUnread(); }
+function openHow(from){ howFrom = from || currentView; show('how'); }
 function initials(n){ return (n||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(); }
 function avaColor(n){ let h=0; for(const ch of (n||'')) h=(h*31+ch.charCodeAt(0))>>>0; return AVA_COLORS[h%AVA_COLORS.length]; }
 function esc(t){ const d=document.createElement('div'); d.textContent = t ?? ''; return d.innerHTML; }
+
+/* ---------- referrals ----------
+   Each signed-in user gets a personal invite link: the live site URL
+   plus ?ref=NOSTOS-XXXXXX, the code derived from their auth user id
+   (first 6 hex chars, uppercased). The schema has no referral column,
+   so attribution is kept on this device (localStorage) and counted in
+   GoatCounter events when someone joins through a link. */
+const SITE_URL = 'https://sharmauncw.github.io/nostos/';
+function trackEvent(name, title){
+  try{ if(window.goatcounter && window.goatcounter.count) window.goatcounter.count({ path:'event/' + name, title: title || name, event:true }); }catch(e){}
+}
+function captureRef(){
+  try{
+    const ref = new URLSearchParams(location.search).get('ref');
+    if(ref) localStorage.setItem('nostos_ref', ref.slice(0, 40));
+  }catch(e){}
+}
+function storedRef(){ try{ return localStorage.getItem('nostos_ref') || ''; }catch(e){ return ''; } }
+function myRefCode(){
+  if(!user) return '';
+  return 'NOSTOS-' + user.id.replace(/-/g, '').slice(0, 6).toUpperCase();
+}
+function renderInviteSlots(){
+  document.querySelectorAll('.invite-slot').forEach(el=>{
+    el.classList.toggle('hidden', !user);
+    if(!user){ el.innerHTML = ''; return; }
+    const link = SITE_URL + '?ref=' + myRefCode();
+    el.innerHTML = `<b>Bring your people</b>
+      <p class="muted">Know someone landing in a new city? Send them your personal link — when they join ${CONFIG.BRAND} through it, your invite is counted.</p>
+      <div class="invite-row"><input readonly value="${link}" aria-label="Your invite link"><button class="btn btn-dark invite-copy" type="button">Copy link</button></div>`;
+    const btn = el.querySelector('.invite-copy'), input = el.querySelector('input');
+    btn.addEventListener('click', async ()=>{
+      try{ await navigator.clipboard.writeText(link); }
+      catch(e){ input.select(); document.execCommand('copy'); }
+      btn.textContent = 'Copied ✓';
+      setTimeout(()=>{ btn.textContent = 'Copy link'; }, 2000);
+    });
+  });
+}
 
 /* ---------- auth ---------- */
 async function refreshAuth(){
@@ -155,6 +210,7 @@ function profileToQuiz(p){
 function updateAccountBtn(){
   const b = $('#navAccount');
   b.textContent = user ? (user.email.split('@')[0] + ' · Sign out') : 'Sign in';
+  renderInviteSlots();
 }
 $('#navAccount').addEventListener('click', async ()=>{
   if(user){ if(confirm('Sign out of ' + CONFIG.BRAND + '?')){ await sb.auth.signOut(); user=null; myProfile=null; if(unreadChannel){ sb.removeChannel(unreadChannel); unreadChannel = null; } updateAccountBtn(); show('home'); } }
@@ -282,6 +338,8 @@ $('#basicsForm').addEventListener('submit', async e=>{
   const { data, error } = await sb.from('profiles').insert(row).select().single();
   if(error){ alert('Could not create your profile: ' + error.message); return; }
   myProfile = data;
+  const ref = storedRef();
+  if(ref) trackEvent('signup-referral', 'Signup via ' + ref);
   buildDeck();
 });
 
@@ -357,6 +415,7 @@ function renderCard(){
         ${s.talk.map(t=>`<li class="talk">${esc(t)}</li>`).join('')}
       </ul></div>
     </div>
+    ${s.factors && s.factors.length ? `<div class="match-factors">${s.factors.map(f=>`<span class="factor-chip">${esc(f)}</span>`).join('')}</div>` : ''}
     <p class="mate-line">“${esc(m.line || '')}”</p>
     <div class="traits">${traitCells}</div>
     <div class="card-actions">
@@ -428,7 +487,7 @@ async function renderMatches(){
     <div class="match-row">
       <div class="avatar" style="background:${avaColor(d.p.display_name)}">${initials(d.p.display_name)}</div>
       <div><b>${esc(d.p.display_name)}, ${d.p.age}</b>${d.p.verified ? '<span class="verified">✓ ID verified</span>' : ''}${d.p.is_sample ? '<span class="sample-badge">Sample</span>' : ''}<br>
-      <span class="muted">${esc(d.p.area || '')} · ${esc(d.p.job || '')}</span></div>
+      <span class="muted">${esc(d.p.area || '')} · ${esc(d.p.job || '')}</span>${d.s.factors && d.s.factors.length ? `<br><span class="factor-line">${d.s.factors.map(esc).join(' · ')}</span>` : ''}</div>
       <div class="sc">${d.s.pct}%</div>
     </div>
     <div class="match-actions">
@@ -452,6 +511,9 @@ async function openChat(d){
   currentChat = d;
   if(chatChannel && sb){ sb.removeChannel(chatChannel); chatChannel = null; }
   $('#chatName').textContent = `${d.p.display_name}, ${d.p.age} · ${d.s.pct}% match`;
+  const whyEl = $('#chatWhy');
+  if(d.s.factors && d.s.factors.length){ whyEl.textContent = 'Why you match: ' + d.s.factors.join(' · '); whyEl.classList.remove('hidden'); }
+  else whyEl.classList.add('hidden');
   $('#chatVerified').classList.toggle('hidden', !d.p.verified);
   const log = $('#chatLog'); log.innerHTML = '';
   $('#icebreakers').innerHTML = ['Ask about their Sunday routine','The guest rule: what works for you?','Bills: split even, or split by room size?']
@@ -588,6 +650,7 @@ function watchUnread(){
 
 /* ---------- waitlist ---------- */
 function initHome(){
+  captureRef();
   document.title = `${CONFIG.BRAND} — Find your people. Come home.`;
   document.querySelectorAll('[data-brand]').forEach(el=>el.textContent = CONFIG.BRAND);
   const sel = $('#waitCity');
@@ -596,9 +659,23 @@ function initHome(){
   $('#waitlistForm').addEventListener('submit', async e=>{
     e.preventDefault();
     const email = $('#waitEmail').value.trim();
-    if(sb) await sb.from('waitlist').insert({ city: sel.value, email });
+    let pos = 0;
+    if(sb){
+      await sb.from('waitlist').insert({ city: sel.value, email });
+      /* Position needs a count of this city's waitlist. Current RLS only
+         permits inserts, so the count normally comes back 0 — in that
+         case we confirm without a number (see the ROADMAP follow-up). */
+      const { count } = await sb.from('waitlist').select('id', { count:'exact', head:true }).eq('city', sel.value);
+      if(typeof count === 'number' && count > 0) pos = count;
+    }
     else { try{ const l = JSON.parse(localStorage.getItem('nostos_waitlist')||'[]'); l.push({city:sel.value, email}); localStorage.setItem('nostos_waitlist', JSON.stringify(l)); }catch(err){} }
-    $('#waitOk').classList.remove('hidden'); e.target.classList.add('hidden');
+    const ref = storedRef();
+    if(ref) trackEvent('waitlist-referral', 'Waitlist via ' + ref);
+    const okEl = $('#waitOk');
+    okEl.textContent = pos > 0
+      ? `You're in — #${pos} in line for ${sel.value.split(',')[0]}. We'll write to you the moment your city opens. 🏠`
+      : `You're in. We'll write to you the moment your city opens. 🏠`;
+    okEl.classList.remove('hidden'); e.target.classList.add('hidden');
   });
   $('#navMatches').addEventListener('click', ()=>renderMatches());
   $('#startQuiz').addEventListener('click', startQuiz);
@@ -608,6 +685,9 @@ function initHome(){
   $('#safetyQuiz').addEventListener('click', startQuiz);
   $('#navVerify').addEventListener('click', openVerify);
   $('#verifyBack').addEventListener('click', ()=>show('home'));
+  const hd = $('#howFromDeck'); if(hd) hd.addEventListener('click', ()=>openHow('deck'));
+  const hq = $('#howFromQuiz'); if(hq) hq.addEventListener('click', ()=>openHow('quiz'));
+  const hb = $('#howBack'); if(hb) hb.addEventListener('click', ()=>show(howFrom));
 }
 
 /* ---------- verification ---------- */

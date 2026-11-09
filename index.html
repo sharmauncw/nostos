@@ -80,6 +80,8 @@
       <div class="city-chips" id="cityChips"></div>
     </div>
 
+    <div class="card invite-slot hidden"></div>
+
     <div class="card safety-strip">
       <h2>Built for the person arriving alone</h2>
       <p class="muted">New city, no network, a lease to sign. That's who we protect first: verified IDs, in-app chat until you're comfortable, and a meet-first rule on every match.</p>
@@ -100,6 +102,7 @@
       <div id="quizBody"></div>
       <button class="btn btn-go hidden" id="quizNext">Continue</button>
     </div>
+    <button class="link-btn" id="howFromQuiz">How we score matches →</button>
   </section>
 
   <!-- DECK -->
@@ -115,11 +118,35 @@
       <button class="yes" id="btnYes">♥ Connect</button>
     </div>
     <button class="btn btn-ghost" id="editProfile">← Edit my answers</button>
+    <button class="btn btn-ghost" id="howFromDeck">How matching works</button>
+  </section>
+
+  <!-- HOW MATCHING WORKS -->
+  <section id="view-how" class="hidden">
+    <button class="link-btn" id="howBack">← Back</button>
+    <h2>How matching works</h2>
+    <div class="card">
+      <p class="muted">Your ten answers become a score out of 100 for every person in your city. The biggest slices go to the things that make or break a shared home:</p>
+      <div class="weight-rows">
+        <div class="weight-row"><span>Sleep schedule</span><b>20 points</b></div>
+        <div class="weight-row"><span>Cleaning style</span><b>20 points</b></div>
+        <div class="weight-row"><span>Guests &amp; gatherings</span><b>15 points</b></div>
+        <div class="weight-row"><span>Budget — closer budgets score more</span><b>15 points</b></div>
+        <div class="weight-row"><span>Food at home</span><b>10 points</b></div>
+        <div class="weight-row"><span>Work style</span><b>10 points</b></div>
+        <div class="weight-row"><span>Pets</span><b>5 points</b></div>
+        <div class="weight-row"><span>Smoking</span><b>5 points</b></div>
+      </div>
+      <p class="muted">Close answers earn most of a slice; far-apart answers earn little. The % on each card is the total, and every card lists its biggest reasons — no mystery score.</p>
+      <h3 class="how-sub">Deal-breakers are different</h3>
+      <p class="muted">Deal-breakers aren't points — they're walls. If someone clashes with one you picked — smoking indoors, pets in the home, a very different sleep schedule, frequent overnight guests — they never appear in your deck at all. You set them in the last quiz question, and you can change them any time by editing your answers.</p>
+    </div>
   </section>
 
   <!-- MATCHES -->
   <section id="view-matches" class="hidden">
     <h2>Your matches</h2>
+    <div class="card invite-slot hidden"></div>
     <div id="matchList"></div>
     <button class="btn btn-ghost" id="againBtn">↺ Start over</button>
   </section>
@@ -131,6 +158,7 @@
       <b id="chatName"></b>
       <span class="verified hidden" id="chatVerified">✓ ID verified</span>
     </div>
+    <p class="chat-why hidden" id="chatWhy"></p>
     <div class="card chat-card">
       <div class="chat-log" id="chatLog"></div>
       <div class="icebreakers" id="icebreakers"></div>
@@ -222,7 +250,7 @@
   </footer>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="app.js?v=6"></script>
+<script src="app.js?v=7"></script>
 <script>
 /* PWA: register the service worker (shell caching; data stays network-only) */
 if ('serviceWorker' in navigator) {
