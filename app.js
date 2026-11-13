@@ -385,7 +385,7 @@ async function buildDeck(preset){
   $('#deckCity').textContent = CITIES[quiz.city].name;
   const note = $('#deckNote');
   if(!inCity){
-    note.textContent = `${CITIES[quiz.city].name} is just opening — the waitlist decides where we grow next. Meanwhile, meet some of our verified community members (sample profiles, marked as such).`;
+    note.textContent = `${CITIES[quiz.city].name} is just opening — the waitlist decides where we grow next. Meanwhile, meet some of our community members (sample profiles, marked as such).`;
     note.classList.remove('hidden');
   } else if(hiddenCount){
     note.textContent = `${hiddenCount} ${hiddenCount===1?'person was':'people were'} hidden by your deal-breakers.`;

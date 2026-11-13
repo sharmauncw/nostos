@@ -2,7 +2,7 @@
    Cache-first for the same-origin app shell; everything cross-origin
    (Supabase API/realtime, Google Fonts, the Supabase CDN) goes straight
    to the network and is never cached. Bump SHELL_VERSION on shell changes. */
-const SHELL_VERSION = 'nostos-shell-v3';
+const SHELL_VERSION = 'nostos-shell-v4';
 const SHELL_FILES = [
   './',
   './index.html',
